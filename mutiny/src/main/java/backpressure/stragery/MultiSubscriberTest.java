@@ -3,6 +3,7 @@ package backpressure.stragery;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.subscription.BackPressureStrategy;
 
+// example of launching one thread per subscription
 public final class MultiSubscriberTest {
 
     public static void main(String[] args) {
