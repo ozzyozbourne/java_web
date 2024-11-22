@@ -1,5 +1,6 @@
 package learn2;
 
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 
 import java.time.Duration;
@@ -26,5 +27,10 @@ public class Uni11 {
                                 () -> "Ok",
                                 delayedExecutor(5, TimeUnit.SECONDS))))
                 .subscribe().with(System.out::println);
+
+
+
+
+
     }
 }
