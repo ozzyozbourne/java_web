@@ -23,16 +23,14 @@ public class Multi2 {
         AtomicInteger counter = new AtomicInteger();
         CountDownLatch latch = new CountDownLatch(1);
 
-        Multi.createFrom().emitter(emitter -> {
-                    ref.set(service.scheduleAtFixedRate(() -> {
-                        emitter.emit("tick");
-                        if (counter.getAndIncrement() == 5) {
-                            ref.get().cancel(true);
-                            emitter.complete();
-                            latch.countDown();
-                        }
-                    }, 0, 500, TimeUnit.MILLISECONDS));
-                })
+        Multi.createFrom().emitter(emitter -> ref.set(service.scheduleAtFixedRate(() -> {
+            emitter.emit("tick");
+            if (counter.getAndIncrement() == 5) {
+                ref.get().cancel(true);
+                emitter.complete();
+                latch.countDown();
+            }
+        }, 0, 500, TimeUnit.MILLISECONDS)))
                 .subscribe().with(System.out::println, Throwable::printStackTrace, () -> System.out.println("Done!"));
 
         latch.await();
@@ -40,6 +38,13 @@ public class Multi2 {
     }
 
     static void test02(){
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        ScheduledFuture<?> t  = scheduler.scheduleAtFixedRate(
+                () -> System.out.println("asdfa"),
+                0,
+                30,
+                TimeUnit.SECONDS
+        );
 
     }
 
