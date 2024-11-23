@@ -17,19 +17,19 @@ public class Muti03 {
         AtomicInteger counter = new AtomicInteger();
         CountDownLatch latch = new CountDownLatch(1);
 
-        Multi.createFrom().emitter(emitter -> {
-                    ref.set(service.scheduleAtFixedRate(() -> {
-                        emitter.emit("tick");
-                        if (counter.getAndIncrement() == 5) {
-                            ref.get().cancel(true);
-                            emitter.complete();
-                            latch.countDown();
-                        }
-                    }, 0, 500, TimeUnit.MILLISECONDS));
-                })
+        Multi.createFrom().emitter(emitter -> ref.set(service.scheduleAtFixedRate(() -> {
+            emitter.emit("tick");
+            if (counter.getAndIncrement() == 5) {
+                ref.get().cancel(true);
+                emitter.complete();
+                latch.countDown();
+            }
+        }, 0, 500, TimeUnit.MILLISECONDS)))
                 .subscribe().with(System.out::println, Throwable::printStackTrace, () -> System.out.println("Done!"));
 
         latch.await();
         service.shutdown();
+
+
     }
 }
