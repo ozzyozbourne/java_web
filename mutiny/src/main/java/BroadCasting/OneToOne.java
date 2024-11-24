@@ -2,10 +2,10 @@ package BroadCasting;
 
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
+import io.smallrye.mutiny.subscription.BackPressureStrategy;
+import io.smallrye.mutiny.subscription.MultiSubscriber;
 
-import java.util.List;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 
 //hot and cold
@@ -25,8 +25,11 @@ public final class OneToOne {
     public static void main(final String... args) throws InterruptedException {
         Infrastructure.setDefaultExecutor(publisherExecutor);
 
-        final Multi<String> publisher = getOneToOneMulti();
+        final Multi<Integer> publisher = getOneToOneMulti();
 
+        publisher.subscribe().withSubscriber(getSubscriber());
+        publisher.subscribe().withSubscriber(getSubscriber());
+        publisher.subscribe().withSubscriber(getSubscriber());
 
         latch.await();
         scheduledExecutorService.close();
@@ -34,9 +37,69 @@ public final class OneToOne {
         publisherExecutor.close();
     }
 
-    static Multi<String> getOneToOneMulti(){
-        final AtomicReference<ScheduledFuture<?>> futureAtomicReference = new AtomicReference<>();
-        return null;
+    static Multi<Integer> getOneToOneMulti(){
+
+        final Multi<Integer> stage1 =  Multi.createFrom().emitter(em ->
+                scheduledExecutorService.scheduleAtFixedRate(
+                        () ->{
+                            System.out.println("Emitting on -> " + Thread.currentThread().getName());
+                            em.emit(ThreadLocalRandom.current().nextInt());
+                            },
+                        1,
+                        2,
+                        TimeUnit.SECONDS), BackPressureStrategy.ERROR);
+
+        return stage1.onOverflow()
+                .invoke(() -> System.out.println(Thread.currentThread().getName() + "OVERFLOW"))
+                .buffer(10)
+                .emitOn(publisherExecutor)
+                .runSubscriptionOn(subscriptionExecutor);
+    }
+
+    static MultiSubscriber<Integer> getSubscriber(){
+        return new MultiSubscriber<>() {
+
+            private Flow.Subscription subscription;
+            private int received = 0;
+
+            @Override
+            public void onSubscribe(Flow.Subscription subscription) {
+                this.subscription = subscription;
+                subscription.request(5);
+                // Print thread name to verify different pool
+                System.out.println("Subscribing on thread: " +
+                        Thread.currentThread().getName());
+            }
+
+            @Override
+            public void onItem(final Integer item) {
+                System.out.println("Processing item: " + item +
+                        " on thread: " + Thread.currentThread().getName());
+                received += 1;
+                try {
+                    Thread.sleep(250);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                int batchSize = 5;
+                if (received % batchSize == 0) {
+                    System.out.println("Requesting next batch...");
+                    subscription.request(batchSize);
+                }
+            }
+
+
+            @Override
+            public void onFailure(final Throwable failure) {
+                System.out.println("\n✋ " + failure.getMessage());
+            }
+
+            @Override
+            public void onCompletion() {
+                System.out.println("done");
+            }
+
+        };
     }
 
 
